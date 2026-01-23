@@ -8,8 +8,8 @@ const router = express.Router();
 router.get("/", async(req, res) => {
     try{
         const {search, department, page = 1, limit = 10} = req.query;
-        const currentPage = Math.max(1, +page);
-        const limitPerPage = Math.max(1, +limit);
+        const currentPage = Math.max(1, Number(page) || 1);
+        const limitPerPage = Math.max(1, Math.min(100, Number(limit) || 10));
         const offset = (currentPage - 1) * limitPerPage;
         const filterConditions = []
         if(search){
@@ -46,7 +46,7 @@ router.get("/", async(req, res) => {
         })
     }catch(e){
         console.error(`GET /subjects error: ${e}`)
-        res.status(500).json({error: 'Falied to get subjects'});
+        res.status(500).json({error: 'Failed to get subjects'});
     }
 })
 
