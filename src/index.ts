@@ -7,11 +7,14 @@ const PORT = 8000;
 
 if(!process.env.FRONTEND_URL) throw new Error('FRONTEND_URL is not set in .env file. CORS will block cross-origin requests.')
 
-
+console.log(`Backend expects origin: '${process.env.FRONTEND_URL}'`);
 app.use(cors({
   origin: process.env.FRONTEND_URL,
-  methods:['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  methods:['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }))
 
 // JSON middleware
