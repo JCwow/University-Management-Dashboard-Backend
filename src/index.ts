@@ -3,6 +3,8 @@ import subjectsRouter from './routes/subjects.js'
 import cors from 'cors'
 import 'dotenv/config'
 import securityMiddleware from './middleware/security.js';
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from './lib/auth';
 const app = express();
 const PORT = 8000;
 
@@ -21,6 +23,8 @@ app.use(cors({
   preflightContinue: false,
   optionsSuccessStatus: 204
 }))
+
+app.all('/api/auth/*splat', toNodeHandler(auth));
 
 // JSON middleware
 app.use(express.json());

@@ -22,6 +22,20 @@
       "when": 1769308919668,
       "tag": "0002_keen_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769584288747,
+      "tag": "0003_harsh_preak",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769584452836,
+      "tag": "0004_fluffy_mikhail_rasputin",
+      "breakpoints": true
     }
   ]
 }
