@@ -15,6 +15,13 @@
       "when": 1769140503143,
       "tag": "0001_calm_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769308919668,
+      "tag": "0002_keen_legion",
+      "breakpoints": true
     }
   ]
 }
