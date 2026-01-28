@@ -3,6 +3,8 @@ AgentAPI.config()
 
 import express from 'express';
 import subjectsRouter from './routes/subjects.js'
+import classesRouter from './routes/classes.js'
+import usersRouter from './routes/users.js'
 import cors from 'cors'
 import 'dotenv/config'
 import securityMiddleware from './middleware/security.js';
@@ -35,6 +37,8 @@ app.use(express.json());
 app.use(securityMiddleware);
 
 app.use('/api/subjects', subjectsRouter)
+app.use('/api/classes', classesRouter)
+app.use('/api/users', usersRouter)
 // Root GET route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to University Management Dashboard API' });
