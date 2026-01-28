@@ -1,4 +1,4 @@
-import arcjet, { shield, detectBot, tokenBucket, slidingWindow } from "@arcjet/node";
+import arcjet, { shield, detectBot, tokenBucket } from "@arcjet/node";
 import { isSpoofedBot } from "@arcjet/inspect";
 if(!process.env.ARCJET_KEY && process.env.NODE_ENV !== 'test'){
     throw new Error('ARCJET_KEY env is required');
@@ -18,11 +18,6 @@ const aj = arcjet({
           "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
           "CATEGORY:PREVIEW", // Link previews e.g. Slack, Discord
         ],
-      }),
-      slidingWindow({
-        mode: 'LIVE',
-        interval: '2',
-        max: 5
       })
     ],
   });

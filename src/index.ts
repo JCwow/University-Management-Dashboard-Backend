@@ -9,6 +9,10 @@ const PORT = 8000;
 if(!process.env.FRONTEND_URL) throw new Error('FRONTEND_URL is not set in .env file. CORS will block cross-origin requests.')
 
 console.log(`Backend expects origin: '${process.env.FRONTEND_URL}'`);
+
+// Enable trust proxy to read X-Forwarded-For headers for accurate client IP
+app.set('trust proxy', true);
+
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   methods:['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

@@ -11,12 +11,12 @@ const securityMiddleware = async(req: Request, res: Response, next: NextFunction
         switch(roles){
             case 'admin':
                 limit=20;
-                message = 'Admin request limit exceeted (20 per minute). Slow down.'
+                message = 'Admin request limit exceeded (20 per minute). Slow down.'
                 break;
             case 'teacher':
             case 'student':
                 limit=10;
-                message = 'User request limit exceeted (10 per minute) Please wait.'
+                message = 'User request limit exceeded (10 per minute) Please wait.'
                 break;
             default: 
                 limit=5;
@@ -35,18 +35,18 @@ const securityMiddleware = async(req: Request, res: Response, next: NextFunction
             method: req.method,
             url: req.originalUrl ?? req.url,
             socket: {
-                remoteAddress: req.socket.remoteAddress ?? req.ip ?? '0.0.0.0'
+                remoteAddress: req.ip ?? req.socket.remoteAddress ?? '0.0.0.0'
             }
         }
         const decision = await client.protect(arcjetRequest);
         if(decision.isDenied() && decision.reason.isBot()){
-            return res.status(403).json({error: 'Forbidden', message: 'Automoted requests are not allowed.'})
+            return res.status(403).json({error: 'Forbidden', message: 'Automated requests are not allowed.'})
         }
         if(decision.isDenied() && decision.reason.isShield()){
             return res.status(403).json({error: 'Forbidden', message: 'Request blocked by security policy.'})
         }
         if(decision.isDenied() && decision.reason.isRateLimit()){
-            return res.status(403).json({error: 'Too many requests', message})
+            return res.status(429).json({error: 'Too many requests', message})
         }
         next();
     }catch(e){
