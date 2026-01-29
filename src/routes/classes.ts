@@ -1,45 +1,79 @@
-import express from "express"
-import { classes, subjects } from "../db/schema/app.js";
-import { user } from "../db/schema/auth.js";
-import {and, ilike, or, sql, eq, getTableColumns, desc} from "drizzle-orm"
-import { db } from "../db/index.js";
-import { create } from "node:domain";
+import express from "express";
+import {and, desc, eq, getTableColumns, ilike, or, sql} from "drizzle-orm";
+import { randomBytes } from "crypto";
+
+import {db} from "../db/index.js";
+import {classes, departments, subjects} from '../db/schema/app.js'
+import { user } from '../db/schema/auth.js'
+
 const router = express.Router();
 
+const teacherSelect = {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    imageCldPubId: user.imageCldPubId,
+};
+
 // Get all classes with optional search, filtering and pagination
-router.get("/", async(req, res) => {
-    try{
-        const {search, subject, teacher, page = 1, limit = 10} = req.query;
-        const currentPage = Math.max(1, Number(page) || 1);
-        const limitPerPage = Math.max(1, Math.min(100, Number(limit) || 10));
+router.get("/", async (req, res) => {
+    try {
+        const { search, subject, teacher, page = 1, limit = 10 } = req.query;
+
+        const currentPage = Math.max(1, parseInt(String(page), 10) || 1);
+        const limitPerPage = Math.min(Math.max(1, parseInt(String(limit), 10) || 10), 100); // Max 100 records per page
+
         const offset = (currentPage - 1) * limitPerPage;
-        const filterConditions = []
-        if(search){
+
+        const filterConditions = [];
+
+        // If search query exists, filter by class name OR invite code
+        if (search) {
             filterConditions.push(
                 or(
                     ilike(classes.name, `%${search}%`),
                     ilike(classes.inviteCode, `%${search}%`)
                 )
             );
-        } 
-        if(subject){
-            filterConditions.push(ilike(subjects.name, `%${subject}%`))
         }
-        if(teacher){
-            filterConditions.push(ilike(user.name, `%${teacher}%`))
+
+        // If subject filter exists, match subject name
+        if (subject) {
+            const subjectPattern = `%${String(subject).replace(/[%_]/g, '\\$&')}%`;
+            filterConditions.push(ilike(subjects.name, subjectPattern));
         }
-        const whereClause = filterConditions.length > 0 ? and(...filterConditions): undefined;
-        const countResult = await db.select({count: sql<number>`count(*)`}).from(classes).leftJoin(subjects, eq(classes.subjectId, subjects.id)).leftJoin(user, eq(classes.teacherId, user.id)).where(whereClause)
+
+        // If teacher filter exists, match teacher name
+        if (teacher) {
+            const teacherPattern = `%${String(teacher).replace(/[%_]/g, '\\$&')}%`;
+            filterConditions.push(ilike(user.name, teacherPattern));
+        }
+
+        // Combine all filters using AND if any exist
+        const whereClause = filterConditions.length > 0 ? and(...filterConditions) : undefined;
+
+        const countResult = await db
+            .select({ count: sql<number>`count(*)`})
+            .from(classes)
+            .leftJoin(subjects, eq(classes.subjectId, subjects.id))
+            .leftJoin(user, eq(classes.teacherId, user.id))
+            .where(whereClause);
+
         const totalCount = countResult[0]?.count ?? 0;
-        const classesList = await db.select({
-            ...getTableColumns(classes), 
-            subject: {...getTableColumns(subjects)},
-            teacher: {...getTableColumns(user)}
-        }).from(classes).leftJoin(subjects, eq(classes.subjectId, subjects.id)).leftJoin(user, eq(classes.teacherId, user.id))
-        .where(whereClause)
-        .orderBy(desc(classes.createdAt))
-        .limit(limitPerPage)
-        .offset(offset);
+
+        const classesList = await db
+            .select({
+                ...getTableColumns(classes),
+                subject: { ...getTableColumns(subjects) },
+                teacher: teacherSelect
+            })
+            .from(classes)
+            .leftJoin(subjects, eq(classes.subjectId, subjects.id))
+            .leftJoin(user, eq(classes.teacherId, user.id))
+            .where(whereClause)
+            .orderBy(desc(classes.createdAt))
+            .limit(limitPerPage)
+            .offset(offset);
 
         res.status(200).json({
             data: classesList,
@@ -47,27 +81,58 @@ router.get("/", async(req, res) => {
                 page: currentPage,
                 limit: limitPerPage,
                 total: totalCount,
-                totalPages: Math.ceil(totalCount/limitPerPage)
+                totalPages: Math.ceil(totalCount / limitPerPage),
             }
         })
-    }catch(e){
-        console.error(`GET /classes error: ${e}`)
-        res.status(500).json({error: 'Failed to get classes'});
+
+    } catch (e) {
+        console.error(`GET /classes error: ${e}`);
+        res.status(500).json({ error: 'Failed to get classes' });
     }
 })
 
-router.post('/', async(req, res) => {
-    try{
-        const [createdClass] = await db.insert(classes)
-        .values({...req.body, inviteCode: Math.random().toString(36).substring(2, 9), schedules: []})
-        .returning({id: classes.id });
-        
+// Get class details with teacher, subject, and department
+router.get('/:id', async (req, res) => {
+    const classId = Number(req.params.id);
+
+    if(!Number.isFinite(classId)) return res.status(400).json({ error: 'No Class found.' });
+
+    const [classDetails] = await db
+        .select({
+            ...getTableColumns(classes),
+            subject: {
+                ...getTableColumns(subjects),
+            },
+            department: {
+                ...getTableColumns(departments),
+            },
+            teacher: teacherSelect
+        })
+        .from(classes)
+        .leftJoin(subjects, eq(classes.subjectId, subjects.id))
+        .leftJoin(user, eq(classes.teacherId, user.id))
+        .leftJoin(departments, eq(subjects.departmentId, departments.id))
+        .where(eq(classes.id, classId))
+
+    if(!classDetails) return res.status(404).json({ error: 'No Class found.' });
+
+    res.status(200).json({ data: classDetails });
+})
+
+router.post('/', async (req, res) => {
+    try {
+        const [createdClass] = await db
+            .insert(classes)
+            .values({...req.body, inviteCode: randomBytes(5).toString('base36' as BufferEncoding).substring(0, 7), schedules: []})
+            .returning({ id: classes.id });
+
         if(!createdClass) throw Error;
-        res.status(201).json({data: createdClass})
-    }catch(e){
-        console.error(`POST /classes error ${e}`)
-        res.status(500).json({error: e})
+
+        res.status(201).json({ data: createdClass });
+    } catch (e) {
+        console.error(`POST /classes error`, e);
+        res.status(500).json({ error: "Internal server error" })
     }
 })
 
-export default router
+export default router;
