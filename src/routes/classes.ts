@@ -1,11 +1,19 @@
 import express from "express";
 import {and, desc, eq, getTableColumns, ilike, or, sql} from "drizzle-orm";
+import { randomBytes } from "crypto";
 
 import {db} from "../db/index.js";
 import {classes, departments, subjects} from '../db/schema/app.js'
 import { user } from '../db/schema/auth.js'
 
 const router = express.Router();
+
+const teacherSelect = {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    imageCldPubId: user.imageCldPubId,
+};
 
 // Get all classes with optional search, filtering and pagination
 router.get("/", async (req, res) => {
@@ -57,7 +65,7 @@ router.get("/", async (req, res) => {
             .select({
                 ...getTableColumns(classes),
                 subject: { ...getTableColumns(subjects) },
-                teacher: { ...getTableColumns(user) }
+                teacher: teacherSelect
             })
             .from(classes)
             .leftJoin(subjects, eq(classes.subjectId, subjects.id))
@@ -98,9 +106,7 @@ router.get('/:id', async (req, res) => {
             department: {
                 ...getTableColumns(departments),
             },
-            teacher: {
-                ...getTableColumns(user),
-            }
+            teacher: teacherSelect
         })
         .from(classes)
         .leftJoin(subjects, eq(classes.subjectId, subjects.id))
@@ -117,15 +123,15 @@ router.post('/', async (req, res) => {
     try {
         const [createdClass] = await db
             .insert(classes)
-            .values({...req.body, inviteCode: Math.random().toString(36).substring(2, 9), schedules: []})
+            .values({...req.body, inviteCode: randomBytes(5).toString('base36' as BufferEncoding).substring(0, 7), schedules: []})
             .returning({ id: classes.id });
 
         if(!createdClass) throw Error;
 
         res.status(201).json({ data: createdClass });
     } catch (e) {
-        console.error(`POST /classes error ${e}`);
-        res.status(500).json({ error: e})
+        console.error(`POST /classes error`, e);
+        res.status(500).json({ error: "Internal server error" })
     }
 })
 
